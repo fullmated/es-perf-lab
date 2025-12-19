@@ -1,0 +1,42 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: es-lab-elasticsearch
+    environment:
+      # ローカルでの検証用なので「1台だけで動く」モードにする
+      - discovery.type=single-node
+      # ローカルでの検証用なので認証を省略
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      # JIT コンパイルログ確認用（Painless コンパイラのウォームアップ検証）
+      # - "ES_JAVA_OPTS=-Xms512m -Xmx512m -XX:+PrintCompilation"
+    ports:
+      - "29200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      - es-lab-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: es-lab-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - es-lab-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+volumes:
+  es-data:
+
+networks:
+  es-lab-network:
